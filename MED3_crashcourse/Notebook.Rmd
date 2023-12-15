@@ -1,0 +1,139 @@
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=999)
+
+library(ggplot2)
+library(tidymodels)
+library(skimr)
+library(modelr)
+library(stringr)
+library(corrplot)
+library(RColorBrewer)
+library("PerformanceAnalytics")
+library("Hmisc")
+library(lubridate)
+library(ggbeeswarm)
+library(GGally)
+library(effsize)
+library(magrittr)
+library(cowplot)
+library(ggpubr)
+library(ggpmisc)
+library(tibble)
+
+library(quantreg)
+library(psych)
+library(ggExtra)
+library(tidyverse)
+
+library(dplyr)
+```
+
+```{r load data}
+df <- read.csv("data.csv", fileEncoding="UTF-8-BOM")
+
+df_noRG <- df %>% filter(Exercise != "RG")
+```
+
+```{r analyse the effect of order}
+df_noRG %>% select(-Participant) %>% group_by(Order) %>% skim()
+
+df_noRG_UM <- df_noRG %>% filter(Order == "UM")
+df_noRG_MU <- df_noRG %>% filter(Order == "MU")
+
+shapiro.test(df_noRG_UM$Assessment)
+shapiro.test(df_noRG_MU$Assessment)
+
+t.test(df_noRG_UM$Assessment, df_noRG_MU$Assessment)
+
+df_noRG_UM_U <- df_noRG_UM %>% filter(Condition == "U")
+df_noRG_MU_M <- df_noRG_MU %>% filter(Condition == "M")
+
+df_noRG_UM %>% select(-Participant) %>% group_by(Condition) %>% skim()
+df_noRG_MU %>% select(-Participant) %>% group_by(Condition) %>% skim()
+
+t.test(df_noRG_UM_U$Assessment, df_noRG_MU_M$Assessment)
+
+
+```
+```{r analyse the effect of conditions}
+df_noRG %>% select(-Participant) %>% group_by(Condition) %>% skim()
+
+df_noRG_U <- df_noRG %>% filter(Condition == "U")
+df_noRG_M <- df_noRG %>% filter(Condition == "M")
+
+shapiro.test(df_noRG_U$Assessment)
+shapiro.test(df_noRG_M$Assessment)
+
+t.test(df_noRG_U$Assessment, df_noRG_M$Assessment)
+#wilcox.test(df_noRG_U$Assessment, df_noRG_M$Assessment)
+```
+```{r aggregate the data}
+summary_data <- df %>%
+  group_by(Condition, Participant, Exercise) %>%
+  dplyr::summarize(
+    Mean_assessment = mean(Assessment),
+    sd_assessment = sd(Assessment),
+    mean_deviation = mean(Deviation)
+  )
+
+summary_data_noRG <- summary_data %>% filter(Exercise != "RG")
+
+summary_data_U <- summary_data_noRG %>% filter(Condition == "U")
+summary_data_M <- summary_data_noRG %>% filter(Condition == "M")
+
+shapiro.test(summary_data_U$Mean_assessment)
+shapiro.test(summary_data_M$Mean_assessment)
+
+#What happens if you filter out the zeros?
+#When the system and participant did everything correctly, how well did people do the task?
+t.test(summary_data_U$Mean_assessment, summary_data_M$Mean_assessment)
+wilcox.test(summary_data_U$Mean_assessment, summary_data_M$Mean_assessment)
+
+summary_data_noRG %>% group_by(Condition, Exercise) %>% skim()
+```
+
+```{r visualise difference of conditions}
+#summary_data_noRG <- summary_data %>% filter(Exercise != "RG")
+#summary_data_U <- summary_data_noRG %>% filter(Condition == "U")
+#summary_data_M <- summary_data_noRG %>% filter(Condition == "M")
+#summary_data_noRG %>% group_by(Condition, Exercise) %>% skim()
+
+df_BC <- df %>% filter(Exercise == "BC")
+
+
+ggplot(data = df_BC, aes(x=Condition, y=Assessment, color=Condition)) + 
+  geom_violin(aes(fill=Condition),alpha=0.4) + geom_boxplot(width=0.1) + 
+  theme_bw() + 
+  #ylim(c("1","2","3","4","5","6","7","8","9","10")) + 
+  #ylab("Information recall") + xlab("Topic") +
+  theme(legend.position = "none") + geom_jitter()
+
+ggplot(data = df_BC, aes(x=Condition, y=Assessment)) + 
+  geom_bar() + geom_errorbar() + 
+  theme_bw() + 
+  #ylim(c("1","2","3","4","5","6","7","8","9","10")) + 
+  #ylab("Information recall") + xlab("Topic") +
+  theme(legend.position = "none") 
+
+
+
+ggplot(df_BC, aes(x = Deviation, y = Assessment, color = Condition)) +
+  geom_jitter() +
+  theme_minimal() +  geom_smooth(method="lm")
+
+df_BC_nozero <- df_BC %>% filter(Assessment != 0)
+df_BC_nozero <- df_BC_nozero %>% filter(Deviation != 0)
+ggplot(df_BC_nozero, aes(x = Deviation, y = Assessment, color = Condition)) +
+  geom_jitter() +
+  theme_minimal() +  geom_smooth(method="lm")
+
+
+```
+
+```{r correlation}
+cor.test(df_BC_nozero$Assessment, df_BC_nozero$Deviation)
+
+
+```
+
